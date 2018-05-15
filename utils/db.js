@@ -75,29 +75,44 @@ sequelize.sync(); //Normal case
 
 
 module.exports = {
-  addUrl: function (code, longURL, alias, done, failed) {
-    if (!alias) {
-      URL.findOrCreate({
-        where: {
-          code: code
-        },
-        defaults: {
-          code: code,
-          codeStr: r.to64(code),
-          longURL: longURL
+    addUrl: function (code, longURL, alias, done, failed) {
+        if (!alias) {
+            URL.findOne({
+                where: {
+                    longURL: longURL
+                }
+            }).then(function (result) {
+                if(!result){
+                  URL.findOrCreate({
+                      where: {
+                          code: code
+                      },
+                      defaults: {
+                          code: code,
+                          codeStr: r.to64(code),
+                          longURL: longURL
+                      }
+                  }).spread(function (url, created) {
+                      done(url.codeStr, !created, url.longURL);
+                      }).catch(function (error) {
+                          console.log(error);
+                          failed(error);
+                      })
+                }
+                else {
+                    done(result.codeStr, true, result.longURL);
+                }
+            }).catch(function (error) {
+                console.log(error);
+                failed(error);
+            })
+        } else {
+            //TODO: handle longer than 9 with alias map
         }
+    },
 
-      }).spread(function (url, created) {
-        done(url.codeStr, !created, url.longURL);
-      }).catch(function (error) {
-        console.log(error);
-        failed(error);
-      })
-    } else {
-      //TODO: handle longer than 9 with alias map
-    }
-  },
-  fetchUrl: function (code, from, done, failed) {
+
+    fetchUrl: function (code, from, done, failed) {
     URL.findById(code).then(function (url) {
       done(url.longURL);
       Event.create({
